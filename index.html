@@ -71,10 +71,22 @@
         #btn-clear:hover  { background: #c0392b; }
         #btn-export { background: #27ae60; color: white; }
         #btn-export:hover { background: #229954; }
-        #btn-freehand { background: #8e44ad; color: white; flex-shrink: 0; }
-        #btn-freehand:hover { background: #7d3c98; }
-        #btn-freehand.active { background: #e74c3c; box-shadow: 0 0 0 3px rgba(231,76,60,0.35); }
         button:disabled { background: #bdc3c7 !important; cursor: not-allowed; }
+
+        /* Freihand-Button in der Leaflet-Toolbar */
+        .leaflet-draw-draw a.btn-freehand {
+            background-image: none !important;
+            font-size: 18px;
+            line-height: 30px;
+            text-align: center;
+        }
+        .leaflet-touch .leaflet-draw-draw a.btn-freehand {
+            font-size: 22px;
+            line-height: 44px;
+        }
+        .leaflet-draw-draw a.btn-freehand.freehand-active {
+            background-color: #e74c3c !important;
+        }
 
         #status {
             padding: 8px 14px;
@@ -259,9 +271,8 @@
     </div>
 
     <div id="controls">
-        <button id="btn-freehand">✏️ Freihand</button>
-        <button id="btn-clear"  disabled>Löschen</button>
-        <button id="btn-export" disabled>CSV</button>
+        <button id="btn-clear"  disabled>Auswahl löschen</button>
+        <button id="btn-export" disabled>CSV exportieren</button>
     </div>
 
     <div id="status">Zeichne ein Gebiet auf der Karte.</div>
@@ -319,6 +330,16 @@ new L.Control.Draw({
     },
     edit: { featureGroup: drawnItems }
 }).addTo(map);
+
+// Freihand-Button in die Draw-Toolbar einhängen
+const btnFreehand = document.createElement('a');
+btnFreehand.href = '#';
+btnFreehand.title = 'Freihand zeichnen';
+btnFreehand.textContent = '✏️';
+btnFreehand.className = 'btn-freehand';
+L.DomEvent.on(btnFreehand, 'click', L.DomEvent.stop);
+L.DomEvent.on(btnFreehand, 'click', toggleFreehand);
+document.querySelector('.leaflet-draw-draw').appendChild(btnFreehand);
 
 // ── Zustand ────────────────────────────────────────────────────────────────
 let hotels  = [];
@@ -630,18 +651,22 @@ btnExport.addEventListener('click', () => {
 });
 
 // ── Freihand-Zeichnen ──────────────────────────────────────────────────────
-const btnFreehand = document.getElementById('btn-freehand');
 let freehandActive = false;
 let freehandPoints = [];
 let freehandLine = null;
 
-btnFreehand.addEventListener('click', () => {
+function toggleFreehand() {
     freehandActive = !freehandActive;
-    btnFreehand.textContent = freehandActive ? '✕ Abbrechen' : '✏️ Freihand';
-    btnFreehand.classList.toggle('active', freehandActive);
-    if (freehandActive) mapEl.classList.add('drawing');
-    else { mapEl.classList.remove('drawing'); cleanupFreehand(); }
-});
+    btnFreehand.classList.toggle('freehand-active', freehandActive);
+    if (freehandActive) {
+        map.dragging.disable();
+        mapEl.classList.add('drawing');
+    } else {
+        map.dragging.enable();
+        mapEl.classList.remove('drawing');
+        cleanupFreehand();
+    }
+}
 
 mapEl.addEventListener('touchstart', e => {
     if (!freehandActive) return;
@@ -673,8 +698,8 @@ mapEl.addEventListener('touchend', e => {
     }
 
     freehandActive = false;
-    btnFreehand.textContent = '✏️ Freihand';
-    btnFreehand.classList.remove('active');
+    btnFreehand.classList.remove('freehand-active');
+    map.dragging.enable();
     mapEl.classList.remove('drawing');
 }, { passive: false });
 
