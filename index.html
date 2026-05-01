@@ -71,6 +71,9 @@
         #btn-clear:hover  { background: #c0392b; }
         #btn-export { background: #27ae60; color: white; }
         #btn-export:hover { background: #229954; }
+        #btn-freehand { background: #8e44ad; color: white; flex-shrink: 0; }
+        #btn-freehand:hover { background: #7d3c98; }
+        #btn-freehand.active { background: #e74c3c; box-shadow: 0 0 0 3px rgba(231,76,60,0.35); }
         button:disabled { background: #bdc3c7 !important; cursor: not-allowed; }
 
         #status {
@@ -256,8 +259,9 @@
     </div>
 
     <div id="controls">
-        <button id="btn-clear"  disabled>Auswahl löschen</button>
-        <button id="btn-export" disabled>CSV exportieren</button>
+        <button id="btn-freehand">✏️ Freihand</button>
+        <button id="btn-clear"  disabled>Löschen</button>
+        <button id="btn-export" disabled>CSV</button>
     </div>
 
     <div id="status">Zeichne ein Gebiet auf der Karte.</div>
@@ -624,6 +628,69 @@ btnExport.addEventListener('click', () => {
         href: URL.createObjectURL(blob), download: 'hotels.csv'
     }).click();
 });
+
+// ── Freihand-Zeichnen ──────────────────────────────────────────────────────
+const btnFreehand = document.getElementById('btn-freehand');
+let freehandActive = false;
+let freehandPoints = [];
+let freehandLine = null;
+
+btnFreehand.addEventListener('click', () => {
+    freehandActive = !freehandActive;
+    btnFreehand.textContent = freehandActive ? '✕ Abbrechen' : '✏️ Freihand';
+    btnFreehand.classList.toggle('active', freehandActive);
+    if (freehandActive) mapEl.classList.add('drawing');
+    else { mapEl.classList.remove('drawing'); cleanupFreehand(); }
+});
+
+mapEl.addEventListener('touchstart', e => {
+    if (!freehandActive) return;
+    e.preventDefault();
+    cleanupFreehand();
+    freehandPoints = [];
+    addFreehandPoint(e.touches[0]);
+    freehandLine = L.polyline(freehandPoints, { color: '#8e44ad', weight: 3, dashArray: '6 4' }).addTo(map);
+}, { passive: false });
+
+mapEl.addEventListener('touchmove', e => {
+    if (!freehandActive || !freehandLine) return;
+    e.preventDefault();
+    addFreehandPoint(e.touches[0]);
+    freehandLine.setLatLngs(freehandPoints);
+}, { passive: false });
+
+mapEl.addEventListener('touchend', e => {
+    if (!freehandActive) return;
+    e.preventDefault();
+    cleanupFreehand();
+
+    if (freehandPoints.length >= 3) {
+        drawnItems.clearLayers();
+        const polygon = L.polygon(freehandPoints, { color: '#2980b9', weight: 2, fillOpacity: 0.2 });
+        drawnItems.addLayer(polygon);
+        lastLayer = polygon;
+        queryAll(polygon);
+    }
+
+    freehandActive = false;
+    btnFreehand.textContent = '✏️ Freihand';
+    btnFreehand.classList.remove('active');
+    mapEl.classList.remove('drawing');
+}, { passive: false });
+
+function addFreehandPoint(touch) {
+    const rect = mapEl.getBoundingClientRect();
+    const cp = L.point(touch.clientX - rect.left, touch.clientY - rect.top);
+    if (freehandPoints.length > 0) {
+        const last = map.latLngToContainerPoint(freehandPoints[freehandPoints.length - 1]);
+        if (last.distanceTo(cp) < 8) return;
+    }
+    freehandPoints.push(map.containerPointToLatLng(cp));
+}
+
+function cleanupFreehand() {
+    if (freehandLine) { map.removeLayer(freehandLine); freehandLine = null; }
+}
 
 // ── Löschen ────────────────────────────────────────────────────────────────
 btnClear.addEventListener('click', () => {
