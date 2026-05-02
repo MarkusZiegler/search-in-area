@@ -639,6 +639,7 @@ function render() {
             ${h.address ? `<div class="address">📍 ${esc(h.address)}</div>` : ''}
             ${h.phone   ? `<div class="meta">📞 ${esc(h.phone)}</div>` : ''}
             ${h.website ? `<div><a href="${esc(h.website)}" target="_blank" rel="noopener">${esc(h.website)}</a></div>` : ''}
+            <div><a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" rel="noopener">🗺 Route in Google Maps</a></div>
         `;
 
         card.addEventListener('click',      () => { selectCard(card); map.setView([h.lat, h.lng], 17); marker.openPopup(); });
