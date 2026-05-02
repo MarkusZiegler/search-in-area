@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hotels im Gebiet</title>
+    <title>Finden im Gebiet</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
     <style>
@@ -44,15 +44,6 @@
             flex-shrink: 0;
         }
         #btn-settings:hover { background: rgba(255,255,255,0.25); }
-        #google-indicator {
-            font-size: 0.68rem;
-            padding: 2px 7px;
-            border-radius: 10px;
-            background: #4285f4;
-            color: white;
-            display: none;
-        }
-
         #controls {
             padding: 10px 12px;
             border-bottom: 1px solid #ddd;
@@ -146,10 +137,6 @@
             white-space: nowrap;
             font-weight: 600;
         }
-        .badge-osm    { background: #e8f5e9; color: #2e7d32; }
-        .badge-google { background: #e8f0fe; color: #1a73e8; }
-        .badge-both   { background: #f3e5f5; color: #7b1fa2; }
-        .badge-stars  { background: #fef9e7; color: #c77c00; font-weight: 500; }
         .badge-rating { background: #fff3e0; color: #e65100; font-weight: 500; }
 
         #empty-state {
@@ -356,7 +343,7 @@
 <div id="sidebar">
     <div id="sidebar-header">
         <div class="header-text">
-            <h1>Orte im Gebiet <span id="google-indicator">+ Google</span></h1>
+            <h1>Finden im Gebiet</h1>
             <p>Rechteck oder Polygon auf der Karte einzeichnen</p>
         </div>
         <button id="btn-settings" title="Einstellungen">⚙️</button>
@@ -387,7 +374,7 @@
     <div id="modal">
         <h2>⚙️ Einstellungen</h2>
         <p class="modal-desc">
-            Optionaler Google Places API-Key für vollständigere Ergebnisse.<br>
+            Google Places API-Key für die Suche nach Orten.<br>
             Der Key wird nur in deinem Browser gespeichert (localStorage).
         </p>
         <label for="input-apikey">Google Places API-Key</label>
@@ -413,22 +400,14 @@
 <script>
 // ── Kategorien ────────────────────────────────────────────────────────────
 const CATEGORIES = [
-    { id: 'hotel',       label: 'Hotels',       icon: '🏨', selected: true,
-      osmFilters: ['"tourism"~"^(hotel|motel|hostel|guest_house)$"'], googleTypes: ['lodging'] },
-    { id: 'restaurant',  label: 'Restaurants',  icon: '🍽️', selected: false,
-      osmFilters: ['"amenity"="restaurant"'],                         googleTypes: ['restaurant'] },
-    { id: 'cafe',        label: 'Cafés',         icon: '☕', selected: false,
-      osmFilters: ['"amenity"="cafe"'],                               googleTypes: ['cafe'] },
-    { id: 'fuel',        label: 'Tankstellen',   icon: '⛽', selected: false,
-      osmFilters: ['"amenity"="fuel"'],                               googleTypes: ['gas_station'] },
-    { id: 'supermarket', label: 'Supermärkte',   icon: '🛒', selected: false,
-      osmFilters: ['"shop"="supermarket"'],                           googleTypes: ['supermarket'] },
-    { id: 'pharmacy',    label: 'Apotheken',     icon: '💊', selected: false,
-      osmFilters: ['"amenity"="pharmacy"'],                           googleTypes: ['pharmacy'] },
-    { id: 'bakery',      label: 'Bäckereien',    icon: '🥐', selected: false,
-      osmFilters: ['"shop"="bakery"'],                                googleTypes: ['bakery'] },
-    { id: 'bank',        label: 'Banken',        icon: '🏦', selected: false,
-      osmFilters: ['"amenity"="bank"'],                               googleTypes: ['bank'] },
+    { id: 'hotel',       label: 'Hotels',       icon: '🏨', selected: true,  googleTypes: ['lodging'] },
+    { id: 'restaurant',  label: 'Restaurants',  icon: '🍽️', selected: false, googleTypes: ['restaurant'] },
+    { id: 'cafe',        label: 'Cafés',         icon: '☕', selected: false, googleTypes: ['cafe'] },
+    { id: 'fuel',        label: 'Tankstellen',   icon: '⛽', selected: false, googleTypes: ['gas_station'] },
+    { id: 'supermarket', label: 'Supermärkte',   icon: '🛒', selected: false, googleTypes: ['supermarket'] },
+    { id: 'pharmacy',    label: 'Apotheken',     icon: '💊', selected: false, googleTypes: ['pharmacy'] },
+    { id: 'bakery',      label: 'Bäckereien',    icon: '🥐', selected: false, googleTypes: ['bakery'] },
+    { id: 'bank',        label: 'Banken',        icon: '🏦', selected: false, googleTypes: ['bank'] },
 ];
 
 function selectedCats() { return CATEGORIES.filter(c => c.selected); }
@@ -493,12 +472,11 @@ function selectCard(card) {
 }
 
 // ── DOM ────────────────────────────────────────────────────────────────────
-const statusEl        = document.getElementById('status');
-const resultsEl       = document.getElementById('results');
-const btnRescan       = document.getElementById('btn-rescan');
-const btnClear        = document.getElementById('btn-clear');
-const btnExport       = document.getElementById('btn-export');
-const googleIndicator = document.getElementById('google-indicator');
+const statusEl  = document.getElementById('status');
+const resultsEl = document.getElementById('results');
+const btnRescan = document.getElementById('btn-rescan');
+const btnClear  = document.getElementById('btn-clear');
+const btnExport = document.getElementById('btn-export');
 
 btnRescan.addEventListener('click', () => { if (lastLayer) queryAll(lastLayer); });
 
@@ -524,10 +502,14 @@ map.on(L.Draw.Event.EDITED, e => {
     e.layers.eachLayer(layer => { lastLayer = layer; queryAll(layer); });
 });
 
-// ── Hauptabfrage: OSM + optional Google ───────────────────────────────────
+// ── Hauptabfrage: Google Places ────────────────────────────────────────────
 async function queryAll(layer) {
     const cats = selectedCats();
     if (!cats.length) { setStatus('Bitte mindestens eine Kategorie wählen.'); return; }
+
+    const polyCoords = layer.getLatLngs()[0];
+    if (!polyCoords || polyCoords.length < 3) { setStatus('Ungültige Auswahl.'); return; }
+
     const catLabel = cats.length === 1 ? cats[0].label : `${cats.length} Kategorien`;
     setStatus(`<div class="spinner"></div>Suche ${catLabel}…`);
     btnRescan.disabled = false;
@@ -538,86 +520,30 @@ async function queryAll(layer) {
     hotels = [];
     selectedCard = null;
 
-    const polyStr = getPolyString(layer);
-    const bounds  = layer.getBounds();
-    if (!polyStr) { setStatus('Ungültige Auswahl.'); return; }
-
     const apiKey = loadApiKey();
-
-    let googleError = null;
-    const [osmResults, googleResults] = await Promise.all([
-        fetchOSM(polyStr, cats),
-        apiKey
-            ? fetchGoogle(bounds, apiKey, cats).catch(e => { googleError = e.message; return []; })
-            : Promise.resolve([])
-    ]);
-
-    const polyCoords = layer.getLatLngs()[0];
-    hotels = merge(osmResults, googleResults)
-        .filter(h => pointInPolygon(h.lat, h.lng, polyCoords));
-    render(!!apiKey && !googleError);
-
-    if (googleError) {
-        const current = statusEl.innerHTML;
-        statusEl.innerHTML = current + `<br><span style="color:#e74c3c">⚠ Google-Fehler: ${esc(googleError)}</span>`;
+    if (!apiKey) {
+        setStatus('⚠ Bitte zuerst einen Google Places API-Key in den ⚙️ Einstellungen eintragen.');
+        return;
     }
-}
-
-// ── OSM / Overpass ─────────────────────────────────────────────────────────
-async function fetchOSM(polyStr, cats) {
-    const lines = cats.flatMap(c => c.osmFilters.flatMap(f => [
-        `  node[${f}](poly:"${polyStr}");`,
-        `  way [${f}](poly:"${polyStr}");`,
-        `  relation[${f}](poly:"${polyStr}");`,
-    ]));
-    const query = `[out:json][timeout:30];\n(\n${lines.join('\n')}\n);\nout center tags;`;
 
     try {
-        const resp = await fetch('https://overpass-api.de/api/interpreter', {
-            method: 'POST',
-            body: 'data=' + encodeURIComponent(query)
-        });
-        if (!resp.ok) throw new Error(`OSM HTTP ${resp.status}`);
-        const data = await resp.json();
-        return parseOSM(data.elements);
+        const results = await fetchGoogle(layer.getBounds(), apiKey, cats);
+        hotels = results.filter(h => pointInPolygon(h.lat, h.lng, polyCoords));
+        render();
     } catch (e) {
-        console.warn('OSM Fehler:', e.message);
-        return [];
+        setStatus(`<span style="color:#e74c3c">⚠ Google-Fehler: ${esc(e.message)}</span>`);
     }
-}
-
-function parseOSM(elements) {
-    const seen = new Set();
-    return elements
-        .filter(el => { if (seen.has(el.id)) return false; seen.add(el.id); return true; })
-        .map(el => {
-            const t   = el.tags || {};
-            const lat = el.lat ?? el.center?.lat;
-            const lng = el.lon ?? el.center?.lon;
-            return {
-                name:    t.name || t['name:de'] || '(kein Name)',
-                type:    t.tourism || t.amenity || t.shop || 'place',
-                address: buildAddress(t),
-                stars:   t.stars || t['tourism:stars'] || null,
-                rating:  null,
-                website: t.website || t.url || null,
-                phone:   t.phone || null,
-                email:   t.email || null,
-                lat, lng,
-                sources: ['OSM']
-            };
-        })
-        .filter(h => h.lat && h.lng);
-}
-
-function buildAddress(t) {
-    const street = t['addr:street']
-        ? t['addr:street'] + (t['addr:housenumber'] ? ' ' + t['addr:housenumber'] : '') : null;
-    const city = [t['addr:postcode'], t['addr:city']].filter(Boolean).join(' ') || null;
-    return [street, city].filter(Boolean).join(', ') || null;
 }
 
 // ── Google Places API (New) ────────────────────────────────────────────────
+function distM(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
 async function fetchGoogle(bounds, apiKey, cats) {
     const sw = bounds.getSouthWest();
     const ne = bounds.getNorthEast();
@@ -668,95 +594,36 @@ async function fetchGoogle(bounds, apiKey, cats) {
 
 function parseGoogle(places) {
     return places.map(p => ({
-        name:    p.displayName?.text || '(kein Name)',
-        type:    (p.types || []).find(t => Object.keys({hotel:1,motel:1,hostel:1,lodging:1,restaurant:1,cafe:1,gas_station:1,supermarket:1,pharmacy:1,bakery:1,bank:1}).includes(t)) || 'place',
-        address: p.formattedAddress || null,
-        stars:   null,
-        rating:  p.rating ? `${p.rating} ★ (${p.userRatingCount || 0})` : null,
-        website: p.websiteUri || null,
-        phone:   p.nationalPhoneNumber || null,
-        email:   null,
-        lat:     p.location?.latitude,
-        lng:     p.location?.longitude,
-        sources: ['Google']
+        name:        p.displayName?.text || '(kein Name)',
+        type:        (p.types || []).find(t => Object.keys({hotel:1,motel:1,hostel:1,lodging:1,restaurant:1,cafe:1,gas_station:1,supermarket:1,pharmacy:1,bakery:1,bank:1}).includes(t)) || 'place',
+        address:     p.formattedAddress || null,
+        rating:      p.rating ? `${p.rating} ★ (${p.userRatingCount || 0})` : null,
+        ratingValue: p.rating || 0,
+        website:     p.websiteUri || null,
+        phone:       p.nationalPhoneNumber || null,
+        lat:         p.location?.latitude,
+        lng:         p.location?.longitude,
     })).filter(h => h.lat && h.lng);
 }
 
-// ── Zusammenführen & Deduplizieren ─────────────────────────────────────────
-function merge(osmList, googleList) {
-    const result = osmList.map(h => ({ ...h }));
-
-    for (const g of googleList) {
-        // Suche OSM-Eintrag in <80m Entfernung mit ähnlichem Namen
-        const match = result.find(o =>
-            distM(o.lat, o.lng, g.lat, g.lng) < 80 &&
-            nameSim(o.name, g.name)
-        );
-        if (match) {
-            // Zusammenführen: beste Daten aus beiden Quellen
-            match.sources = ['OSM', 'Google'];
-            match.address  = match.address  || g.address;
-            match.website  = match.website  || g.website;
-            match.phone    = match.phone    || g.phone;
-            match.rating   = g.rating;
-        } else {
-            result.push({ ...g });
-        }
-    }
-
-    return result.sort((a, b) => a.name.localeCompare(b.name, 'de'));
-}
-
-function distM(lat1, lng1, lat2, lng2) {
-    const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-function nameSim(a, b) {
-    const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const na = norm(a), nb = norm(b);
-    return na.includes(nb) || nb.includes(na) || levenshtein(na, nb) <= 4;
-}
-
-function levenshtein(a, b) {
-    const dp = Array.from({length: a.length + 1}, (_, i) => [i, ...Array(b.length).fill(0)]);
-    for (let j = 0; j <= b.length; j++) dp[0][j] = j;
-    for (let i = 1; i <= a.length; i++)
-        for (let j = 1; j <= b.length; j++)
-            dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
-    return dp[a.length][b.length];
-}
-
 // ── Anzeige ────────────────────────────────────────────────────────────────
-function render(withGoogle) {
+function render() {
     markers.clearLayers();
-    googleIndicator.style.display = withGoogle ? 'inline' : 'none';
 
     if (hotels.length === 0) {
-        setStatus('Keine Hotels gefunden.');
-        resultsEl.innerHTML = '<div id="empty-state">Keine Hotels in diesem Gebiet.</div>';
+        setStatus('Keine Orte gefunden.');
+        resultsEl.innerHTML = '<div id="empty-state">Keine Orte in diesem Gebiet gefunden.</div>';
         return;
     }
 
-    const osmCount    = hotels.filter(h => h.sources.includes('OSM') && !h.sources.includes('Google')).length;
-    const googleOnly  = hotels.filter(h => !h.sources.includes('OSM')).length;
-    const both        = hotels.filter(h => h.sources.length > 1).length;
-    let statusText    = `${hotels.length} Ort${hotels.length !== 1 ? 'e' : ''}`;
-    if (withGoogle) statusText += ` · ${both} in beiden Quellen · ${googleOnly} nur Google`;
-    setStatus(statusText);
+    hotels.sort((a, b) => b.ratingValue - a.ratingValue);
+
+    setStatus(`${hotels.length} Ort${hotels.length !== 1 ? 'e' : ''} gefunden`);
     btnExport.disabled = false;
     resultsEl.innerHTML = '';
 
     hotels.forEach(h => {
         const icon = L.divIcon({ html: typeToIcon(h.type), className: '', iconSize: [22, 22], iconAnchor: [11, 11] });
-        const srcBadge = h.sources.length > 1
-            ? `<span class="badge badge-both">OSM + Google</span>`
-            : h.sources[0] === 'Google'
-                ? `<span class="badge badge-google">Google</span>`
-                : `<span class="badge badge-osm">OSM</span>`;
 
         const marker = L.marker([h.lat, h.lng], { icon })
             .addTo(markers)
@@ -766,13 +633,11 @@ function render(withGoogle) {
         card.className = 'hotel-card';
         card.innerHTML = `
             <h3>
-                ${esc(h.name)} ${srcBadge}
-                ${h.stars  ? `<span class="badge badge-stars">⭐ ${esc(h.stars)}</span>` : ''}
+                ${esc(h.name)}
                 ${h.rating ? `<span class="badge badge-rating">${esc(h.rating)}</span>` : ''}
             </h3>
             ${h.address ? `<div class="address">📍 ${esc(h.address)}</div>` : ''}
             ${h.phone   ? `<div class="meta">📞 ${esc(h.phone)}</div>` : ''}
-            ${h.email   ? `<div class="meta">✉ ${esc(h.email)}</div>` : ''}
             ${h.website ? `<div><a href="${esc(h.website)}" target="_blank" rel="noopener">${esc(h.website)}</a></div>` : ''}
         `;
 
@@ -794,18 +659,17 @@ function popupHtml(h) {
 
 // ── CSV-Export ─────────────────────────────────────────────────────────────
 btnExport.addEventListener('click', () => {
-    const header = ['Name','Typ','Adresse','Sterne','Bewertung','Website','Telefon','E-Mail','Lat','Lng','Quelle'];
+    const header = ['Name','Typ','Adresse','Bewertung','Website','Telefon','Lat','Lng'];
     const rows   = hotels.map(h => [
-        h.name, h.type, h.address || '', h.stars || '', h.rating || '',
-        h.website || '', h.phone || '', h.email || '',
-        h.lat, h.lng, h.sources.join('+')
+        h.name, h.type, h.address || '', h.rating || '',
+        h.website || '', h.phone || '', h.lat, h.lng
     ]);
     const csv = [header, ...rows]
         .map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
         .join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     Object.assign(document.createElement('a'), {
-        href: URL.createObjectURL(blob), download: 'hotels.csv'
+        href: URL.createObjectURL(blob), download: 'finden-im-gebiet.csv'
     }).click();
 });
 
@@ -883,7 +747,6 @@ btnClear.addEventListener('click', () => {
     hotels = []; lastLayer = null;
     resultsEl.innerHTML = '<div id="empty-state">Nutze die Zeichenwerkzeuge links oben auf der Karte,<br>um ein Gebiet auszuwählen.</div>';
     setStatus('Zeichne ein Gebiet auf der Karte.');
-    googleIndicator.style.display = 'none';
     btnRescan.disabled = btnClear.disabled = btnExport.disabled = true;
 });
 
@@ -1039,9 +902,8 @@ document.getElementById('btn-save-key').addEventListener('click', () => {
     const key = inputApiKey.value.trim();
     if (!key) { modalStatus.style.color = '#e74c3c'; modalStatus.textContent = 'Bitte einen Key eingeben.'; return; }
     saveApiKey(key);
-    googleIndicator.style.display = 'inline';
     modalStatus.style.color = '#27ae60';
-    modalStatus.textContent = 'Gespeichert! Beim nächsten Zeichnen wird Google mitabgefragt.';
+    modalStatus.textContent = 'Gespeichert! Beim nächsten Zeichnen wird Google abgefragt.';
     if (lastLayer) setTimeout(() => { modalOverlay.classList.remove('open'); queryAll(lastLayer); }, 1200);
     else setTimeout(() => modalOverlay.classList.remove('open'), 1500);
 });
@@ -1049,7 +911,6 @@ document.getElementById('btn-save-key').addEventListener('click', () => {
 document.getElementById('btn-clear-key').addEventListener('click', () => {
     localStorage.removeItem('google_places_key');
     inputApiKey.value = '';
-    googleIndicator.style.display = 'none';
     modalStatus.style.color = '#e74c3c';
     modalStatus.textContent = 'Key gelöscht.';
 });
@@ -1072,10 +933,6 @@ function pointInPolygon(lat, lng, ring) {
     return inside;
 }
 
-function getPolyString(layer) {
-    if (!(layer instanceof L.Polygon || layer instanceof L.Rectangle)) return null;
-    return layer.getLatLngs()[0].map(p => `${p.lat} ${p.lng}`).join(' ');
-}
 function setStatus(html) { statusEl.innerHTML = html; }
 function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1114,8 +971,6 @@ function updateCatBtn() {
     catBtn.textContent = txt + ' ▾';
 }
 
-// Google-Indikator beim Start setzen falls Key bereits vorhanden
-if (loadApiKey()) googleIndicator.style.display = 'inline';
 </script>
 </body>
 </html>
