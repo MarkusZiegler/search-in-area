@@ -278,14 +278,33 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-            overflow: hidden;
+            overflow-y: auto;
+            max-height: 60vh;
         }
         #cat-dropdown.open { display: block; }
+        .cat-group-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #2c3e50;
+            background: #f7f9fb;
+            border-bottom: 1px solid #e8e8e8;
+            cursor: pointer;
+            user-select: none;
+        }
+        .cat-group-header:hover { background: #eef4fb; }
+        .cat-group-arrow { margin-left: auto; font-size: 0.7rem; transition: transform 0.15s; }
+        .cat-group.open .cat-group-arrow { transform: rotate(90deg); }
+        .cat-group-items { display: none; }
+        .cat-group.open .cat-group-items { display: block; }
         .cat-item {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 11px 14px;
+            padding: 9px 14px 9px 28px;
             cursor: pointer;
             border-bottom: 1px solid #f0f0f0;
             font-size: 0.84rem;
@@ -350,7 +369,7 @@
     </div>
 
     <div id="cat-wrapper">
-        <button id="cat-btn">🏨 Hotels ▾</button>
+        <button id="cat-btn">Wonach soll gesucht werden? ▾</button>
         <div id="cat-dropdown"></div>
     </div>
 
@@ -399,24 +418,73 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script>
 // ── Kategorien ────────────────────────────────────────────────────────────
-const CATEGORIES = [
-    { id: 'hotel',       label: 'Hotels',       icon: '🏨', selected: true,  googleTypes: ['lodging'] },
-    { id: 'restaurant',  label: 'Restaurants',  icon: '🍽️', selected: false, googleTypes: ['restaurant'] },
-    { id: 'cafe',        label: 'Cafés',         icon: '☕', selected: false, googleTypes: ['cafe'] },
-    { id: 'fuel',        label: 'Tankstellen',   icon: '⛽', selected: false, googleTypes: ['gas_station'] },
-    { id: 'supermarket', label: 'Supermärkte',   icon: '🛒', selected: false, googleTypes: ['supermarket'] },
-    { id: 'pharmacy',    label: 'Apotheken',     icon: '💊', selected: false, googleTypes: ['pharmacy'] },
-    { id: 'bakery',      label: 'Bäckereien',    icon: '🥐', selected: false, googleTypes: ['bakery'] },
-    { id: 'bank',        label: 'Banken',        icon: '🏦', selected: false, googleTypes: ['bank'] },
+const CATEGORY_GROUPS = [
+    { id: 'food', label: 'Gastronomie & Nachtleben', icon: '🍽️', items: [
+        { id: 'restaurant',   label: 'Restaurants',  icon: '🍽️', selected: false, googleTypes: ['restaurant'] },
+        { id: 'cafe',         label: 'Cafés',         icon: '☕', selected: false, googleTypes: ['cafe'] },
+        { id: 'bar',          label: 'Bars',          icon: '🍺', selected: false, googleTypes: ['bar'] },
+        { id: 'night_club',   label: 'Clubs',         icon: '🎵', selected: false, googleTypes: ['night_club'] },
+        { id: 'bakery',       label: 'Bäckereien',    icon: '🥐', selected: false, googleTypes: ['bakery'] },
+        { id: 'meal_takeaway',label: 'Take-away',     icon: '🥡', selected: false, googleTypes: ['meal_takeaway'] },
+    ]},
+    { id: 'health', label: 'Gesundheit & Beauty', icon: '💊', items: [
+        { id: 'pharmacy',      label: 'Apotheken',       icon: '💊', selected: false, googleTypes: ['pharmacy'] },
+        { id: 'hospital',      label: 'Krankenhäuser',   icon: '🏥', selected: false, googleTypes: ['hospital'] },
+        { id: 'doctor',        label: 'Ärzte',           icon: '🩺', selected: false, googleTypes: ['doctor'] },
+        { id: 'dentist',       label: 'Zahnärzte',       icon: '🦷', selected: false, googleTypes: ['dentist'] },
+        { id: 'gym',           label: 'Fitnessstudios',  icon: '💪', selected: false, googleTypes: ['gym'] },
+        { id: 'beauty_salon',  label: 'Kosmetik',        icon: '💅', selected: false, googleTypes: ['beauty_salon'] },
+        { id: 'hair_care',     label: 'Friseure',        icon: '✂️', selected: false, googleTypes: ['hair_care'] },
+        { id: 'spa',           label: 'Spas',            icon: '🧖', selected: false, googleTypes: ['spa'] },
+        { id: 'veterinary_care',label: 'Tierärzte',      icon: '🐾', selected: false, googleTypes: ['veterinary_care'] },
+    ]},
+    { id: 'shopping', label: 'Einkaufen', icon: '🛒', items: [
+        { id: 'supermarket',     label: 'Supermärkte',       icon: '🛒', selected: false, googleTypes: ['supermarket'] },
+        { id: 'shopping_mall',   label: 'Einkaufszentren',   icon: '🏬', selected: false, googleTypes: ['shopping_mall'] },
+        { id: 'convenience_store',label: 'Kiosk',            icon: '🏪', selected: false, googleTypes: ['convenience_store'] },
+        { id: 'department_store',label: 'Kaufhäuser',        icon: '🏭', selected: false, googleTypes: ['department_store'] },
+        { id: 'clothing_store',  label: 'Kleidung',          icon: '👕', selected: false, googleTypes: ['clothing_store'] },
+        { id: 'electronics_store',label: 'Elektronik',       icon: '📱', selected: false, googleTypes: ['electronics_store'] },
+        { id: 'book_store',      label: 'Buchhandlungen',    icon: '📚', selected: false, googleTypes: ['book_store'] },
+        { id: 'florist',         label: 'Blumenläden',       icon: '🌸', selected: false, googleTypes: ['florist'] },
+        { id: 'liquor_store',    label: 'Getränkeläden',     icon: '🍷', selected: false, googleTypes: ['liquor_store'] },
+    ]},
+    { id: 'leisure', label: 'Freizeit & Kultur', icon: '🎭', items: [
+        { id: 'museum',        label: 'Museen',         icon: '🏛️', selected: false, googleTypes: ['museum'] },
+        { id: 'movie_theater', label: 'Kinos',          icon: '🎬', selected: false, googleTypes: ['movie_theater'] },
+        { id: 'park',          label: 'Parks',          icon: '🌳', selected: false, googleTypes: ['park'] },
+        { id: 'bowling_alley', label: 'Bowling',        icon: '🎳', selected: false, googleTypes: ['bowling_alley'] },
+        { id: 'amusement_park',label: 'Freizeitparks',  icon: '🎡', selected: false, googleTypes: ['amusement_park'] },
+    ]},
+    { id: 'services', label: 'Unterkunft & Services', icon: '🏨', items: [
+        { id: 'hotel',       label: 'Hotels',          icon: '🏨', selected: false, googleTypes: ['lodging'] },
+        { id: 'fuel',        label: 'Tankstellen',     icon: '⛽', selected: false, googleTypes: ['gas_station'] },
+        { id: 'parking',     label: 'Parkhäuser',      icon: '🅿️', selected: false, googleTypes: ['parking'] },
+        { id: 'car_repair',  label: 'Autowerkstätten', icon: '🔧', selected: false, googleTypes: ['car_repair'] },
+        { id: 'car_wash',    label: 'Autowäsche',      icon: '🚿', selected: false, googleTypes: ['car_wash'] },
+        { id: 'bank',        label: 'Banken',          icon: '🏦', selected: false, googleTypes: ['bank'] },
+        { id: 'atm',         label: 'Geldautomaten',   icon: '💳', selected: false, googleTypes: ['atm'] },
+        { id: 'post_office', label: 'Postfilialen',    icon: '📮', selected: false, googleTypes: ['post_office'] },
+        { id: 'laundry',     label: 'Wäschereien',     icon: '🧺', selected: false, googleTypes: ['laundry'] },
+    ]},
 ];
 
-function selectedCats() { return CATEGORIES.filter(c => c.selected); }
+function allItems() { return CATEGORY_GROUPS.flatMap(g => g.items); }
+function selectedCats() { return allItems().filter(c => c.selected); }
 
 function typeToIcon(type) {
     const m = {
-        hotel:'🏨', motel:'🏨', hostel:'🏨', guest_house:'🏨', lodging:'🏨',
-        restaurant:'🍽️', cafe:'☕', fuel:'⛽', gas_station:'⛽',
-        supermarket:'🛒', pharmacy:'💊', bakery:'🥐', bank:'🏦',
+        lodging:'🏨', hotel:'🏨', motel:'🏨', hostel:'🏨', guest_house:'🏨',
+        restaurant:'🍽️', cafe:'☕', bar:'🍺', night_club:'🎵',
+        bakery:'🥐', meal_takeaway:'🥡',
+        pharmacy:'💊', hospital:'🏥', doctor:'🩺', dentist:'🦷',
+        gym:'💪', beauty_salon:'💅', hair_care:'✂️', spa:'🧖', veterinary_care:'🐾',
+        supermarket:'🛒', shopping_mall:'🏬', convenience_store:'🏪',
+        department_store:'🏭', clothing_store:'👕', electronics_store:'📱',
+        book_store:'📚', florist:'🌸', liquor_store:'🍷',
+        museum:'🏛️', movie_theater:'🎬', park:'🌳', bowling_alley:'🎳', amusement_park:'🎡',
+        gas_station:'⛽', fuel:'⛽', parking:'🅿️', car_repair:'🔧', car_wash:'🚿',
+        bank:'🏦', atm:'💳', post_office:'📮', laundry:'🧺',
     };
     return m[type] || '📍';
 }
@@ -603,6 +671,7 @@ function parseGoogle(places) {
         phone:       p.nationalPhoneNumber || null,
         lat:         p.location?.latitude,
         lng:         p.location?.longitude,
+        placeId:     p.id || null,
     })).filter(h => h.lat && h.lng);
 }
 
@@ -644,7 +713,7 @@ function render() {
             ${h.address ? `<div class="address">📍 ${esc(h.address)}</div>` : ''}
             ${h.phone   ? `<div class="meta">📞 ${esc(h.phone)}</div>` : ''}
             ${h.website ? `<div><a href="${esc(h.website)}" target="_blank" rel="noopener">${esc(h.website)}</a></div>` : ''}
-            <div><a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" rel="noopener">🗺 Route in Google Maps</a></div>
+            <div><a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(h.name)}&destination_place_id=${h.placeId || ''}" target="_blank" rel="noopener">🗺 Route in Google Maps</a></div>
         `;
 
         card.addEventListener('click',      () => { selectCard(card); map.setView([h.lat, h.lng], 17); marker.openPopup(); });
@@ -948,29 +1017,46 @@ function esc(s) {
 const catBtn      = document.getElementById('cat-btn');
 const catDropdown = document.getElementById('cat-dropdown');
 
-CATEGORIES.forEach(cat => {
-    const label = document.createElement('label');
-    label.className = 'cat-item';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = cat.selected;
-    cb.addEventListener('change', () => { cat.selected = cb.checked; updateCatBtn(); });
-    const icon = document.createElement('span');
-    icon.className = 'cat-icon';
-    icon.textContent = cat.icon;
-    const name = document.createElement('span');
-    name.textContent = cat.label;
-    label.append(cb, icon, name);
-    catDropdown.appendChild(label);
+CATEGORY_GROUPS.forEach(group => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'cat-group';
+
+    const header = document.createElement('div');
+    header.className = 'cat-group-header';
+    header.innerHTML = `<span>${group.icon}</span><span>${group.label}</span><span class="cat-group-arrow">▶</span>`;
+    header.addEventListener('click', e => { e.stopPropagation(); groupEl.classList.toggle('open'); });
+
+    const itemsEl = document.createElement('div');
+    itemsEl.className = 'cat-group-items';
+
+    group.items.forEach(cat => {
+        const label = document.createElement('label');
+        label.className = 'cat-item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = cat.selected;
+        cb.addEventListener('change', () => { cat.selected = cb.checked; updateCatBtn(); });
+        const icon = document.createElement('span');
+        icon.className = 'cat-icon';
+        icon.textContent = cat.icon;
+        const name = document.createElement('span');
+        name.textContent = cat.label;
+        label.append(cb, icon, name);
+        itemsEl.appendChild(label);
+    });
+
+    groupEl.append(header, itemsEl);
+    catDropdown.appendChild(groupEl);
 });
 
 catBtn.addEventListener('click', e => { e.stopPropagation(); catDropdown.classList.toggle('open'); });
 document.addEventListener('click', () => catDropdown.classList.remove('open'));
 catDropdown.addEventListener('click', e => e.stopPropagation());
+updateCatBtn();
 
 function updateCatBtn() {
     const sel = selectedCats();
-    const txt = sel.length === 0 ? 'Keine Kategorie'
+    const txt = sel.length === 0 ? 'Wonach soll gesucht werden?'
               : sel.length === 1 ? `${sel[0].icon} ${sel[0].label}`
               : sel.length <= 2  ? sel.map(c => `${c.icon} ${c.label}`).join(', ')
               : `${sel.length} Kategorien`;
