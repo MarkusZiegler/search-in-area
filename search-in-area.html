@@ -324,44 +324,24 @@
         #req-counter {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             padding: 7px 12px;
             background: #f7f9fb;
             border-bottom: 1px solid #e8e8e8;
             font-size: 0.78rem;
         }
-        #req-tiers {
-            display: flex;
-            gap: 10px;
-            flex: 1;
-        }
-        .req-tier {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 4px 10px;
-            min-width: 0;
-            flex: 1;
-        }
-        .req-label {
-            color: #888;
-            font-size: 0.7rem;
-            white-space: nowrap;
-        }
-        .req-val {
+        #req-counter .req-label { color: #888; white-space: nowrap; }
+        #cnt-enterprise {
             font-weight: 700;
-            font-size: 1rem;
-            color: #2c3e50;
+            font-size: 0.95rem;
+            color: #e67e22;
         }
-        .req-tier-enterprise .req-val { color: #e67e22; }
         #btn-reset-counter {
+            margin-left: auto;
             background: none;
             border: 1px solid #ddd;
             border-radius: 6px;
-            padding: 4px 8px;
+            padding: 3px 8px;
             cursor: pointer;
             font-size: 0.75rem;
             color: #888;
@@ -429,20 +409,9 @@
     </div>
 
     <div id="req-counter">
-        <div id="req-tiers">
-            <div class="req-tier">
-                <span class="req-label">Essentials</span>
-                <span class="req-val" id="cnt-essentials">0</span>
-            </div>
-            <div class="req-tier">
-                <span class="req-label">Pro</span>
-                <span class="req-val" id="cnt-pro">0</span>
-            </div>
-            <div class="req-tier req-tier-enterprise">
-                <span class="req-label">Enterprise</span>
-                <span class="req-val" id="cnt-enterprise">0</span>
-            </div>
-        </div>
+        <span class="req-label">Enterprise Requests</span>
+        <span id="cnt-enterprise">0</span>
+        <span class="req-label">von 1.000 / Monat</span>
         <button id="btn-reset-counter" title="Zähler zurücksetzen">↺ Reset</button>
     </div>
 
@@ -1151,8 +1120,6 @@ function saveCounter(c) { localStorage.setItem(COUNTER_KEY, JSON.stringify(c)); 
 
 function renderCounter() {
     const c = loadCounter();
-    document.getElementById('cnt-essentials').textContent = c.essentials;
-    document.getElementById('cnt-pro').textContent        = c.pro;
     document.getElementById('cnt-enterprise').textContent = c.enterprise;
 }
 
