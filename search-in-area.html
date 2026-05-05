@@ -320,6 +320,55 @@
         }
         .cat-icon { font-size: 1.1rem; }
 
+        /* ── Request Counter ── */
+        #req-counter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            background: #f7f9fb;
+            border-bottom: 1px solid #e8e8e8;
+            font-size: 0.78rem;
+        }
+        #req-tiers {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+        }
+        .req-tier {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 4px 10px;
+            min-width: 0;
+            flex: 1;
+        }
+        .req-label {
+            color: #888;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+        .req-val {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #2c3e50;
+        }
+        .req-tier-enterprise .req-val { color: #e67e22; }
+        #btn-reset-counter {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            color: #888;
+            white-space: nowrap;
+        }
+        #btn-reset-counter:hover { background: #fee; color: #c0392b; border-color: #c0392b; }
+
         /* ── Touch / iPad ── */
         #map.drawing { touch-action: none; }
 
@@ -377,6 +426,24 @@
         <button id="btn-rescan" disabled>🔄 Neu suchen</button>
         <button id="btn-clear"  disabled>Löschen</button>
         <button id="btn-export" disabled>CSV</button>
+    </div>
+
+    <div id="req-counter">
+        <div id="req-tiers">
+            <div class="req-tier">
+                <span class="req-label">Essentials</span>
+                <span class="req-val" id="cnt-essentials">0</span>
+            </div>
+            <div class="req-tier">
+                <span class="req-label">Pro</span>
+                <span class="req-val" id="cnt-pro">0</span>
+            </div>
+            <div class="req-tier req-tier-enterprise">
+                <span class="req-label">Enterprise</span>
+                <span class="req-val" id="cnt-enterprise">0</span>
+            </div>
+        </div>
+        <button id="btn-reset-counter" title="Zähler zurücksetzen">↺ Reset</button>
     </div>
 
     <div id="status">Zeichne ein Gebiet auf der Karte.</div>
@@ -634,11 +701,13 @@ async function fetchGoogle(bounds, apiKey, cats) {
         }
     };
 
-    const fields = [
+    const fieldList = [
         'places.id', 'places.displayName', 'places.formattedAddress',
         'places.location', 'places.websiteUri', 'places.nationalPhoneNumber',
         'places.rating', 'places.userRatingCount', 'places.types'
-    ].join(',');
+    ];
+    const fields = fieldList.join(',');
+    trackRequest(fieldList);
 
     const resp = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
         method: 'POST',
@@ -1062,6 +1131,45 @@ function updateCatBtn() {
               : `${sel.length} Kategorien`;
     catBtn.textContent = txt + ' ▾';
 }
+
+// ── Request Counter ───────────────────────────────────────────────────────
+const ENTERPRISE_FIELDS = ['places.rating','places.userRatingCount','places.nationalPhoneNumber','places.websiteUri','places.reviews','places.editorialSummary'];
+const PRO_FIELDS        = ['places.displayName','places.regularOpeningHours','places.photos','places.priceLevel','places.internationalPhoneNumber'];
+
+function tierForFields(fieldList) {
+    if (fieldList.some(f => ENTERPRISE_FIELDS.includes(f))) return 'enterprise';
+    if (fieldList.some(f => PRO_FIELDS.includes(f)))        return 'pro';
+    return 'essentials';
+}
+
+const COUNTER_KEY = 'req_counter';
+function loadCounter() {
+    try { return JSON.parse(localStorage.getItem(COUNTER_KEY)) || {essentials:0,pro:0,enterprise:0}; }
+    catch { return {essentials:0,pro:0,enterprise:0}; }
+}
+function saveCounter(c) { localStorage.setItem(COUNTER_KEY, JSON.stringify(c)); }
+
+function renderCounter() {
+    const c = loadCounter();
+    document.getElementById('cnt-essentials').textContent = c.essentials;
+    document.getElementById('cnt-pro').textContent        = c.pro;
+    document.getElementById('cnt-enterprise').textContent = c.enterprise;
+}
+
+function trackRequest(fieldList) {
+    const tier = tierForFields(fieldList);
+    const c = loadCounter();
+    c[tier]++;
+    saveCounter(c);
+    renderCounter();
+}
+
+document.getElementById('btn-reset-counter').addEventListener('click', () => {
+    saveCounter({essentials:0,pro:0,enterprise:0});
+    renderCounter();
+});
+
+renderCounter();
 
 </script>
 </body>
